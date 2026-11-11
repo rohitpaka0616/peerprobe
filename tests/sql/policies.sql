@@ -1,0 +1,42 @@
+-- Run after bootstrap, migration, and fixture in an isolated database only.
+create function public.test_assert(ok boolean,message text) returns void language plpgsql as $$ begin if not ok then raise exception 'FAILED: %',message; end if; end $$;
+insert into storage.objects values('44444444-4444-4444-8444-444444444444','screenshots','33333333-3333-4333-8333-333333333333/image');
+set role anon;
+select test_assert((select count(*) from peerprobe_records where kind='tasks')=2,'anon can discover tasks');
+select test_assert((select count(*) from peerprobe_private_criteria)=0,'anon cannot retrieve criteria');
+select test_assert((select count(*) from peerprobe_records where kind='sessions')=0,'anon cannot retrieve sessions');
+select test_assert(not has_function_privilege('anon','public.peerprobe_snapshot()','EXECUTE'),'snapshot unavailable to anon');
+select test_assert(not has_function_privilege('anon','public.peerprobe_commit(bigint,jsonb)','EXECUTE'),'commit unavailable to anon');
+reset role;
+set role authenticated;
+set request.jwt.claim.sub='22222222-2222-4222-8222-222222222222';
+select test_assert((select count(*) from peerprobe_private_criteria)=0,'tester cannot retrieve criteria');
+select test_assert((select count(*) from peerprobe_records where kind='sessions')=1,'tester sees own session');
+select test_assert((select count(*) from peerprobe_records where kind='issues')=1,'reporter sees issue');
+select test_assert((select count(*) from storage.objects)=1,'reporter sees screenshot');
+select test_assert(not has_table_privilege('authenticated','public.peerprobe_records','INSERT'),'direct writes prohibited');
+select test_assert(not has_function_privilege('authenticated','public.peerprobe_snapshot()','EXECUTE'),'snapshot unavailable to authenticated clients');
+set request.jwt.claim.sub='55555555-5555-4555-8555-555555555555';
+select test_assert((select count(*) from peerprobe_records where kind in ('sessions','issues'))=0,'other student sees no private work');
+select test_assert((select count(*) from storage.objects)=0,'other student cannot retrieve screenshot');
+set request.jwt.claim.sub='11111111-1111-4111-8111-111111111111';
+select test_assert((select count(*) from peerprobe_private_criteria)=1,'owner can review criteria');
+select test_assert((select count(*) from peerprobe_records where kind='issues')=1,'owner sees issue');
+select test_assert((select count(*) from storage.objects)=1,'owner sees screenshot');
+reset role;
+set role service_role;
+select test_assert(peerprobe_commit(0,peerprobe_snapshot())=false,'stale revision rejected');
+select test_assert(peerprobe_commit(1,peerprobe_snapshot())=true,'current revision accepted');
+do $$ declare s jsonb; bad_session jsonb; begin
+ s:=peerprobe_snapshot();
+ bad_session:=jsonb_set(s->'sessions'->0,'{id}','"duplicate-session"');
+ s:=jsonb_set(s,'{sessions}',(s->'sessions')||jsonb_build_array(bad_session));
+ begin perform peerprobe_commit(2,s); raise exception 'FAILED: duplicate session accepted'; exception when unique_violation then null; end;
+ s:=peerprobe_snapshot();
+ s:=jsonb_set(s,'{tasks,0,capacity}','0');
+ -- Find the guided task regardless of snapshot ordering.
+ s:=jsonb_set(s,'{tasks}',(select jsonb_agg(case when t->>'id'='rent-split' then jsonb_set(t,'{capacity}','0') else t end) from jsonb_array_elements(s->'tasks') t));
+ begin perform peerprobe_commit(2,s); raise exception 'FAILED: capacity exceeded'; exception when raise_exception then if SQLERRM <> 'All tester spots have been claimed' then raise; end if; end;
+end $$;
+reset role;
+select 'ALL POSTGRESQL POLICY AND TRANSACTION CHECKS PASSED' as result;

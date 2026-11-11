@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PeerProbe — Better software, together</title>
+    <meta
+      name="description"
+      content="PeerProbe is a two-student workspace for testing one build, reporting what you find, and checking the fix on a later build."
+    />
+    <style>
+      :root {
+        --bg: #f8f9fc;
+        --ink: #252636;
+        --muted: #717180;
+        --line: #e9e9f0;
+        --purple: #7355d8;
+        --purple-soft: #f0ebfc;
+        --green: #3c9e83;
+        --surface: #fff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.55;
+      }
+      a { color: inherit; }
+      header, main, footer { width: min(1040px, calc(100% - 40px)); margin: 0 auto; }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 22px 0;
+      }
+      .brand { font-weight: 700; letter-spacing: -0.6px; font-size: 20px; text-decoration: none; }
+      .brand span { color: var(--purple); }
+      nav { display: flex; gap: 18px; font-size: 14px; }
+      nav a { color: var(--muted); text-decoration: none; }
+      .hero { padding: 28px 0 10px; }
+      .eyebrow { color: var(--purple); font-size: 12px; font-weight: 700; letter-spacing: 0.12em; }
+      h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.02; letter-spacing: -2px; margin: 10px 0 14px; }
+      h1 span { color: var(--purple); }
+      .lede { max-width: 640px; color: var(--muted); font-size: 18px; }
+      .actions { display: flex; gap: 12px; flex-wrap: wrap; margin: 22px 0 8px; }
+      .button, button.choice {
+        border: 0;
+        border-radius: 8px;
+        padding: 11px 16px;
+        font: inherit;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .button.primary { background: var(--purple); color: white; }
+      .button.quiet { background: white; color: var(--ink); border: 1px solid var(--line); }
+      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px 0 10px; }
+      .card, .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+      .card { padding: 18px; }
+      .card b { display: block; margin-bottom: 6px; }
+      .card p, .panel p { color: var(--muted); margin: 0; }
+      .step { color: var(--purple); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; }
+      .layout { display: grid; grid-template-columns: 1fr 0.9fr; gap: 22px; align-items: start; margin: 36px 0; }
+      .panel { padding: 22px; }
+      h2 { margin: 0 0 8px; letter-spacing: -0.4px; }
+      .choices { display: flex; gap: 8px; margin: 14px 0; }
+      button.choice { background: #f4f4f8; color: var(--ink); }
+      button.choice[aria-pressed="true"] { background: var(--purple-soft); color: var(--purple); }
+      .nest { background: #f8f7f3; color: #454b3f; border-radius: 12px; overflow: hidden; border: 1px solid #e8e8df; }
+      .nest-bar { display: flex; justify-content: space-between; align-items: center; background: #fffefb; padding: 14px 16px; border-bottom: 1px solid #e8e8df; }
+      .nest-brand { font-family: Georgia, serif; font-size: 26px; color: #6d7d5c; letter-spacing: -1px; }
+      .nest-brand span { color: #b1bd95; }
+      .nest-bar small { font-size: 9px; letter-spacing: 0.08em; color: #a1a18e; }
+      .nest-body { padding: 16px; }
+      .photo { height: 92px; border-radius: 10px; background: linear-gradient(110deg, #d4d4b7 0%, #e8e5d5 45%, #c5c5aa 46%, #eeebdb 100%); }
+      .nest h3 { font-family: Georgia, serif; font-weight: 400; font-size: 24px; margin: 14px 0 4px; color: #424d38; }
+      .address { color: #a4a68e; font-size: 13px; margin-bottom: 12px; }
+      .rent { background: #fffefb; border: 1px solid #e3e5d6; border-radius: 10px; padding: 14px; }
+      .rent-top, .people, .share { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+      .rent-top strong { font-size: 22px; color: #57674a; }
+      .people { margin-top: 12px; font-size: 13px; color: #90997f; }
+      .stepper { display: flex; border: 1px solid #dfe4d5; border-radius: 6px; overflow: hidden; }
+      .stepper button { border: 0; background: #f7f8f0; padding: 8px 10px; color: #929f7c; }
+      .stepper output { width: 32px; text-align: center; font-weight: 700; color: #6e7c5c; padding-top: 6px; }
+      .share { margin-top: 12px; background: #eff3e9; border-radius: 6px; padding: 12px; color: #8b9979; }
+      .share strong { font-size: 22px; color: #768b5d; }
+      .note { text-align: center; color: #b0b5a0; font-size: 12px; margin: 10px 0 0; }
+      .result { margin-top: 12px; font-size: 14px; }
+      .result.bad { color: #9a4d32; }
+      .result.good { color: var(--green); }
+      pre { background: #252636; color: #f8f9fc; border-radius: 10px; padding: 14px 16px; overflow: auto; font-size: 13px; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      footer { color: var(--muted); font-size: 13px; padding: 10px 0 40px; }
+      @media (max-width: 800px) {
+        .grid, .layout { grid-template-columns: 1fr; }
+        nav { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="./">peerprobe<span>.</span></a>
+      <nav>
+        <a href="#demo">Sample app</a>
+        <a href="#run">Run it</a>
+        <a href="https://github.com/rohitpaka0616/peerprobe">Source</a>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="eyebrow">A PEER TESTING WORKSPACE</div>
+        <h1>Fresh eyes.<br />Better builds<span>.</span></h1>
+        <p class="lede">
+          One student publishes a task against an exact preview. Another
+          student tests that build, reports what broke, and later checks the
+          fix. The original result stays attached to the version that was tested.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#run">Run the local demo</a>
+          <a class="button quiet" href="#demo">Try the rent calculator</a>
+        </div>
+      </section>
+      <section class="grid">
+        <article class="card">
+          <div class="step">01</div>
+          <b>Publish one build</b>
+          <p>Alex posts a guided or usability task with a version-specific preview URL.</p>
+        </article>
+        <article class="card">
+          <div class="step">02</div>
+          <b>Test and report</b>
+          <p>Jamie claims the task, marks each step, and files an issue that stays private to the two of them.</p>
+        </article>
+        <article class="card">
+          <div class="step">03</div>
+          <b>Retest the next build</b>
+          <p>A newer build gets its own attempt. The first session remains pinned to the original version.</p>
+        </article>
+      </section>
+      <section class="layout" id="demo">
+        <div class="panel">
+          <h2>The app under test</h2>
+          <p>
+            Nest is the sample apartment page. v1.0 leaves the share at $1,200
+            after the roommate count changes. v1.1 divides the $2,400 rent by
+            the number of people.
+          </p>
+          <div class="choices" role="group" aria-label="Sample build">
+            <button class="choice" id="v1" type="button" aria-pressed="true">v1.0 · broken</button>
+            <button class="choice" id="v2" type="button" aria-pressed="false">v1.1 · fixed</button>
+          </div>
+          <p class="result bad" id="verdict" role="status">
+            Three people should pay $800. This build still shows $1,200.
+          </p>
+        </div>
+        <div class="nest" aria-label="Nest sample apartment">
+          <div class="nest-bar">
+            <div class="nest-brand">nest<span>.</span></div>
+            <small>FIND YOUR NEXT CHAPTER</small>
+          </div>
+          <div class="nest-body">
+            <div class="photo" role="img" aria-label="Sunny living room"></div>
+            <h3>Maple Court Apartment</h3>
+            <div class="address">24 Maple Avenue · University District</div>
+            <div class="rent">
+              <div class="rent-top">
+                <span>Make it work together</span>
+                <strong>$2,400</strong>
+              </div>
+              <div class="people">
+                <label for="count">People splitting rent</label>
+                <div class="stepper">
+                  <button type="button" id="less" aria-label="Fewer people">−</button>
+                  <output id="count" aria-live="polite">2</output>
+                  <button type="button" id="more" aria-label="More people">+</button>
+                </div>
+              </div>
+              <div class="share">
+                <span>Each person pays</span>
+                <strong id="share">$1,200</strong>
+              </div>
+              <p class="note" id="version">Nest sample app · v1.0 · Preview for peer testing</p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="panel" id="run">
+        <h2>Run the workspace</h2>
+        <p>
+          This page is static. Accounts, saved sessions, and issues need the
+          PeerProbe server, which you run on your own machine.
+        </p>
+        <pre><code>npm install
+npm run dev</code></pre>
+        <p>
+          Open <code>http://127.0.0.1:3000</code>. The sidebar switches between
+          Jamie, the tester, and Alex, the developer. Delete <code>.data</code>
+          to restore the seeded Nest tasks.
+        </p>
+      </section>
+    </main>
+    <footer>
+      PeerProbe project page. The testing workspace is not hosted here.
+    </footer>
+    <script>
+      const count = document.querySelector("#count");
+      const share = document.querySelector("#share");
+      const verdict = document.querySelector("#verdict");
+      const version = document.querySelector("#version");
+      const v1 = document.querySelector("#v1");
+      const v2 = document.querySelector("#v2");
+      let people = 2;
+      let fixed = false;
+      function money(n) {
+        return n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+      }
+      function draw() {
+        const each = fixed ? 2400 / people : 1200;
+        count.textContent = String(people);
+        share.textContent = money(each);
+        version.textContent = "Nest sample app · " + (fixed ? "v1.1" : "v1.0") + " · Preview for peer testing";
+        const wrong = !fixed && people !== 2;
+        const right = fixed && people === 3;
+        verdict.className = "result " + (wrong ? "bad" : right ? "good" : "");
+        verdict.textContent = people === 3
+          ? (fixed
+            ? "Three people pay $800, and the $2,400 total stays the same."
+            : "Three people should pay $800. This build still shows $1,200.")
+          : "Change the count to three. v1.0 stays at $1,200. v1.1 becomes $800.";
+      }
+      document.querySelector("#less").onclick = () => { people = Math.max(1, people - 1); draw(); };
+      document.querySelector("#more").onclick = () => { people = Math.min(8, people + 1); draw(); };
+      v1.onclick = () => { fixed = false; v1.setAttribute("aria-pressed", "true"); v2.setAttribute("aria-pressed", "false"); draw(); };
+      v2.onclick = () => { fixed = true; v2.setAttribute("aria-pressed", "true"); v1.setAttribute("aria-pressed", "false"); draw(); };
+      draw();
+    </script>
+  </body>
+</html>
